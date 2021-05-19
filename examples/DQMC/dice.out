@@ -23,8 +23,8 @@ http://www.colorado.edu/lab/sharmagroup/
 **************************************************************
 
 User:             anma2640
-Date:             Tue Apr 20 10:56:33 2021
-PID:              133096
+Date:             Tue Apr 20 11:12:26 2021
+PID:              144626
 
 Path:             /projects/anma2640/newDice/Dice/Dice
 Commit:           901b73a90e066ecac7130d88b7e63e656d1aef42
@@ -36,20 +36,19 @@ Compilation Date: Mar 15 2021 23:19:58
 INPUT FILE
 **************************************************************
 #system
-nocc 14
-0 1 2 3 4 5 6 7 8 9 10 11 12 13 
+nocc 10
+0 1 2 3 4 5 6 7 8 9 
 orbitals ./FCIDUMP_can
 nroots 1
 
 #variational
 schedule
-0	0.0001
+0	0.00005
 end
 davidsonTol 5e-05
 dE 1e-06
 maxiter 6
-writebestdeterminants 5000
-#printalldeterminants
+writebestdeterminants 1000
 
 #pt
 nPTiter 0
@@ -69,7 +68,7 @@ noio
 **************************************************************
 SELECTING REFERENCE DETERMINANT(S)
 **************************************************************
-2 2 2 2 2   2 2 0 0 0   0 0 0 0 0   0 0 0  Given Ref. Energy:       -108.8645996117
+2 2 2 2 2   0 0 0 0 0   0 0 0 0 0   0 0 0 0 0   0 0 0 0  Given Ref. Energy:        -76.0267704190
 Skipping Ref. Determinant Search for pointgroup c1
 Using HF as ref determinant
 
@@ -78,27 +77,27 @@ Using HF as ref determinant
 VARIATIONAL STEP  
 **************************************************************
 Iter Root       Eps1   #Var. Det.               Energy   #Davidson     Time(s)
-   0    0    1.00e-04        1918      -109.0675239810          8        0.08
-   1    0    1.00e-04      120500      -109.0905879387         10        2.49
-   2    0    1.00e-04      139140      -109.0913820211          8        3.32
-   3    0    1.00e-04      140397      -109.0913996932          5        3.78
-   4    0    1.00e-04      140427      -109.0913997260          2        4.15
+   0    0    5.00e-05        3313       -76.2312986575          8        0.16
+   1    0    5.00e-05      399904       -76.2433974023         10       13.37
+   2    0    5.00e-05      433979       -76.2435206788          6       16.61
+   3    0    5.00e-05      434937       -76.2435227133          4       18.45
+   4    0    5.00e-05      434951       -76.2435228026          3       19.98
 Performing final tight davidson with tol: 5e-05
 Exiting variational iterations
 
 Variational calculation result
 Root             Energy     Time(s)
-   0     -109.0913997260        4.19
+   0      -76.2435228026       20.27
 
 Printing most important determinants
  Det     weight  Determinant string
 State :   0
-   0       0.9510084039  2 2 2 2 2   2 2 0 0 0   0 0 0 0 0   0 0 0 
-   1      -0.0817311804  2 2 2 2 0   2 2 2 0 0   0 0 0 0 0   0 0 0 
-   2      -0.0817311804  2 2 2 2 2   0 2 0 2 0   0 0 0 0 0   0 0 0 
-   3      -0.0517626169  2 2 2 0 2   2 2 2 0 0   0 0 0 0 0   0 0 0 
-   4      -0.0517626169  2 2 2 0 2   2 2 0 2 0   0 0 0 0 0   0 0 0 
-   5       0.0459078314  2 2 2 2 a   b 2 b a 0   0 0 0 0 0   0 0 0 
+   0      -0.9707500839  2 2 2 2 2   0 0 0 0 0   0 0 0 0 0   0 0 0 0 0   0 0 0 0 
+   1       0.0503019624  2 2 2 2 0   0 0 0 0 0   2 0 0 0 0   0 0 0 0 0   0 0 0 0 
+   2       0.0360354219  2 2 0 2 2   0 0 2 0 0   0 0 0 0 0   0 0 0 0 0   0 0 0 0 
+   3       0.0348157043  2 2 2 0 2   0 0 0 0 2   0 0 0 0 0   0 0 0 0 0   0 0 0 0 
+   4       0.0299363354  2 2 0 2 2   0 2 0 0 0   0 0 0 0 0   0 0 0 0 0   0 0 0 0 
+   5       0.0284012072  2 2 0 2 2   0 0 0 2 0   0 0 0 0 0   0 0 0 0 0   0 0 0 0 
 
 
 **************************************************************

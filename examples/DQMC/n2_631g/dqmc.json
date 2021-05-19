@@ -5,16 +5,21 @@
   },
   "wavefunction":
   {
-    "name": "jastrow"
+    "right": "ccsd",
+    "left": "multislater",
+    "determinants": "dets.bin",
+    "ndets": 100
   },
   "sampling":
   {
-    "seed": 5,
-    "dt": 0.1,
-    "nsteps": 50,
-    "orthoSteps": 20,
-    "ene0Guess": -109.057,
-    "numJastrowSamples": 100,
-    "stochasticIter": 500
+    "seed": 3928359,
+    "dt": 0.05,
+    "nsteps": 60,
+    "eneSteps": [ 30, 40, 50, 60 ],
+    "errorTargets": [ 1.0e-3, 1.0e-3, 1.0e-3, 1.0e-3 ],
+    "choleskyThreshold": 1.0e-3,
+    "orthoSteps": 5,
+    "ene0Guess": -109.09038703755226,
+    "stochasticIter": 100000
   }
 }
