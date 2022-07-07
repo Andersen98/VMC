@@ -19,12 +19,12 @@
 
 #ifndef Lanczos_HEADER_H
 #define Lanczos_HEADER_H
-#include <vector>
+// in Determinants.h #include <vector>
 #include <set>
 #include "Determinants.h"
 #include "workingArray.h"
 #include "excitationOperators.h"
-#include <boost/serialization/serialization.hpp>
+// in Determinants.h #include <boost/serialization/serialization.hpp>
 #include <boost/serialization/vector.hpp>
 #include <boost/serialization/array.hpp>
 #include <utility>

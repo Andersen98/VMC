@@ -19,15 +19,8 @@
 #ifndef HFWalker_HEADER_H
 #define HFWalker_HEADER_H
 
-#include "Determinants.h"
 #include "WalkerHelper.h"
 #include <array>
-#include "igl/slice.h"
-#include "igl/slice_into.h"
-#include "Slater.h"
-#include "MultiSlater.h"
-#include "AGP.h"
-#include "Pfaffian.h"
 #include <unordered_set>
 
 using namespace Eigen;

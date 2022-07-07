@@ -19,10 +19,10 @@
 
 #ifndef EOM_HEADER_H
 #define EOM_HEADER_H
-#include <vector>
-#include <set>
-#include <boost/serialization/serialization.hpp>
-#include <boost/serialization/vector.hpp>
+//in correlated wavefunction #include <vector>
+// in Correlated Wavefunction #include <set>
+//in correlated wavefunction #include <boost/serialization/serialization.hpp>
+// in correlated wavefunction #include <boost/serialization/vector.hpp>
 #include <boost/serialization/array.hpp>
 #include <utility>
 #include <iomanip>

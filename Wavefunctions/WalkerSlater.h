@@ -4,7 +4,7 @@
 #include "WalkerBase.h"
 #include "WalkerHelperSlater.h"
 #include <unordered_set>
-
+#include <boost/algorithm/string/predicate.hpp>
 
 
 template<typename Corr>
@@ -101,7 +101,7 @@ struct Walker<Corr, Slater> {
     }
   }
 
-  void initDet(const MatrixXd& HforbsA, const MatrixXd& HforbsB) 
+  void initDet(const Eigen::MatrixXd& HforbsA, const Eigen::MatrixXd& HforbsB) 
   {
     bool readDeterminant = false;
     char file[5000];
@@ -195,8 +195,8 @@ struct Walker<Corr, Slater> {
   {
     if (from[0].size() + from[1].size() == 0) return 1.;
     int numExc = from[0].size() + from[1].size();
-    VectorXi tableIndicesRow = VectorXi::Zero(from[0].size() + from[1].size());
-    VectorXi tableIndicesCol = VectorXi::Zero(from[0].size() + from[1].size());
+    Eigen::VectorXi tableIndicesRow = Eigen::VectorXi::Zero(from[0].size() + from[1].size());
+    Eigen::VectorXi tableIndicesCol = Eigen::VectorXi::Zero(from[0].size() + from[1].size());
     Determinant dcopy = d;
     double parity = 1.;
     int count = 0;
@@ -214,7 +214,7 @@ struct Walker<Corr, Slater> {
       }
     }
 
-    MatrixXcd detSlice = MatrixXcd::Zero(numExc,numExc);
+    Eigen::MatrixXcd detSlice = Eigen::MatrixXcd::Zero(numExc,numExc);
     igl::slice(refHelper.rTable[0][0], tableIndicesRow, tableIndicesCol, detSlice);
     complex<double> det(0.,0.);
     if (detSlice.rows() == 1) det = detSlice(0, 0);
@@ -426,7 +426,7 @@ struct Walker<Corr, Slater> {
     }
   }
 
-  void OverlapWithGradient(const Slater &ref, Eigen::VectorBlock<VectorXd> &grad) const
+  void OverlapWithGradient(const Slater &ref, Eigen::VectorBlock<Eigen::VectorXd> &grad) const
   {
     double detovlp = getDetOverlap(ref);
     //for (int i = 0; i < ref.ciExpansion.size(); i++)
@@ -434,13 +434,13 @@ struct Walker<Corr, Slater> {
     grad[0] = 0.;
     if (ref.determinants.size() <= 1 && schd.optimizeOrbs) {
       //if (hftype == UnRestricted)
-      VectorXd gradOrbitals;
+      Eigen::VectorXd gradOrbitals;
       if (ref.hftype == UnRestricted) {
-        gradOrbitals = VectorXd::Zero(4 * ref.HforbsA.rows() * ref.HforbsA.rows());
+        gradOrbitals = Eigen::VectorXd::Zero(4 * ref.HforbsA.rows() * ref.HforbsA.rows());
         OverlapWithOrbGradient(ref, gradOrbitals, detovlp);
       }
       else {
-        gradOrbitals = VectorXd::Zero(2 * ref.HforbsA.rows() * ref.HforbsA.rows());
+        gradOrbitals = Eigen::VectorXd::Zero(2 * ref.HforbsA.rows() * ref.HforbsA.rows());
         if (ref.hftype == Restricted) OverlapWithOrbGradient(ref, gradOrbitals, detovlp);
         else OverlapWithOrbGradientGhf(ref, gradOrbitals, detovlp);
       }

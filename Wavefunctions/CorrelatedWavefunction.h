@@ -22,9 +22,9 @@
 #include <set>
 #include <boost/serialization/serialization.hpp>
 #include <boost/serialization/vector.hpp>
-#include <unordered_set>
+// in Walker.h #include <unordered_set>
 #include "input.h"
-#include "Walker.h"
+#include "WalkerSlater.h"
 
 class oneInt;
 class twoInt;
@@ -159,10 +159,10 @@ struct CorrelatedWavefunction {
                            Eigen::VectorXd &grad) const
   {
     double factor1 = 1.0;
-    Eigen::VectorBlock<VectorXd> gradhead = grad.head(corr.getNumVariables());
+    Eigen::VectorBlock<Eigen::VectorXd> gradhead = grad.head(corr.getNumVariables());
     corr.OverlapWithGradient(walk.d, gradhead, factor1);
   
-    Eigen::VectorBlock<VectorXd> gradtail = grad.tail(grad.rows() - corr.getNumVariables());
+    Eigen::VectorBlock<Eigen::VectorXd> gradtail = grad.tail(grad.rows() - corr.getNumVariables());
     walk.OverlapWithGradient(ref, gradtail);
   }
 
@@ -179,20 +179,20 @@ struct CorrelatedWavefunction {
 
   void updateVariables(Eigen::VectorXd &v) 
   {
-    Eigen::VectorBlock<VectorXd> vhead = v.head(corr.getNumVariables());
+    Eigen::VectorBlock<Eigen::VectorXd> vhead = v.head(corr.getNumVariables());
     corr.updateVariables(vhead);
-    Eigen::VectorBlock<VectorXd> vtail = v.tail(v.rows() - corr.getNumVariables());
+    Eigen::VectorBlock<Eigen::VectorXd> vtail = v.tail(v.rows() - corr.getNumVariables());
     ref.updateVariables(vtail);
   }
 
   void getVariables(Eigen::VectorXd &v) const
   {
     if (v.rows() != getNumVariables())
-      v = VectorXd::Zero(getNumVariables());
+      v = Eigen::VectorXd::Zero(getNumVariables());
 
-    Eigen::VectorBlock<VectorXd> vhead = v.head(corr.getNumVariables());
+    Eigen::VectorBlock<Eigen::VectorXd> vhead = v.head(corr.getNumVariables());
     corr.getVariables(vhead);
-    Eigen::VectorBlock<VectorXd> vtail = v.tail(v.rows() - corr.getNumVariables());
+    Eigen::VectorBlock<Eigen::VectorXd> vtail = v.tail(v.rows() - corr.getNumVariables());
     ref.getVariables(vtail);
   }
 

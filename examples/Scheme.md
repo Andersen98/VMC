@@ -1,5 +1,8 @@
 # Example Scheme
 
+
+## Setup Docs
+
 Remark: We will just link to the pyscf site so we can reference their sphinx docs. Following the guide [from the sphinx docs.](https://docs.readthedocs.io/en/stable/guides/intersphinx.html)
 
 Put this in the `conf.py` file
@@ -28,6 +31,10 @@ Now we can use the `sphinx` name with a cross-reference rule
 - {ref}`:ref: role <sphinx:ref-role>`
 - {doc}`sphinx:usage/extensions/intersphinx`
 - {doc}`Intersphinx <sphinx:usage/extensions/intersphinx>`
+
+
+## Example Folder Structure
+
 
 ```
 - `${method_name}`
@@ -67,3 +74,16 @@ We describe the elements in the scheme in turn below.
     :tpye mol: :ref: `pyscf:module-pyscf.molek`
     :rtype: module-pyscf.scf.hf
 ```
+
+## Examples Group TODO
+
+Looks like adding symmetry requires us to pull from python
+
+Improve compiling:
+
+speed up compiling within code context
+use inheritence to reusse the code
+look for header file dependency chains
+Look for header in headers
+template specialization:
+    general template: ex matrix T --> matrix Double (put in C file)

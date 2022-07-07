@@ -21,13 +21,13 @@
 #define JRBM_HEADER_H
 #include "Jastrow.h"
 #include "RBM.h"
-#include <Eigen/Dense>
-#include <vector>
-#include <iostream>
-#include <boost/serialization/serialization.hpp>
-#include <boost/serialization/vector.hpp>
-#include <boost/archive/binary_iarchive.hpp>
-#include <boost/archive/binary_oarchive.hpp>
+// in Jastrow.h #include <Eigen/Dense>
+//  in Jastrow.h #include <vector>
+// in Jastrow.h #include <iostream>
+//in Jastrow.h #include <boost/serialization/serialization.hpp>
+// in Jastrow.h #include <boost/serialization/vector.hpp>
+// in Jastrow.h #include <boost/archive/binary_iarchive.hpp>
+// in Jastrow.h #include <boost/archive/binary_oarchive.hpp>
 #include <string>
 
 class Determinant;

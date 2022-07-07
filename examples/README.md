@@ -30,5 +30,10 @@ This directory contains examples input files for each executable in the VMC repo
 - n2 examples/_VMC/n2
 - 
 - 
+## Todo Next
+- [ ] figure out afqmc example format scheme
+
+
+
 
 

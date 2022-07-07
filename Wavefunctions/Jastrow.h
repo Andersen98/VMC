@@ -20,13 +20,13 @@
 #ifndef Jastrow_HEADER_H
 #define Jastrow_HEADER_H
 #include "Correlator.h"
-#include <Eigen/Dense>
-#include <vector>
-#include <iostream>
-#include <boost/serialization/serialization.hpp>
-#include <boost/serialization/vector.hpp>
-#include <boost/archive/binary_iarchive.hpp>
-#include <boost/archive/binary_oarchive.hpp>
+// in Correlator.h #include <Eigen/Dense>
+// in Correlator.h #include <vector>
+// in Correlator.h #include <iostream>
+// in Correlator.h #include <boost/serialization/serialization.hpp>
+// in Correlator.h #include <boost/serialization/vector.hpp>
+// in Correlator.h #include <boost/archive/binary_iarchive.hpp>
+// in Correlator.h #include <boost/archive/binary_oarchive.hpp>
 #include <string>
 
 class Determinant;
