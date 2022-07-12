@@ -1,40 +1,67 @@
-#USE_MPI = yes
-#USE_INTEL = yes
-#COMPILE_NUMERIC = yes
+USE_MPI = yes
+USE_INTEL = yes
+COMPILE_NUMERIC = yes
 
-#EIGEN=/projects/ilsa8974/apps/eigen/
-#BOOST=/projects/anma2640/boost_1_66_0/
-#HDF5=/curc/sw/hdf5/1.10.1/impi/17.3/intel/17.4/
-#SPARSEHASH=/projects/anma2640/sparsehash/src/
-#LIBIGL=/projects/sash2458/apps/libigl/include/
+EIGEN=/projects/ilsa8974/apps/eigen/
+BOOST=/projects/anma2640/boost_1_66_0/
+HDF5=/curc/sw/hdf5/1.10.1/impi/17.3/intel/17.4/
+SPARSEHASH=/projects/anma2640/sparsehash/src/
+LIBIGL=/projects/sash2458/apps/libigl/include/
 #HDF5=${CURC_HDF5_ROOT}
 
 
 #FLAGS = -std=c++14 -O3 -g -I./FCIQMC -I./VMC -I./utils -I./Wavefunctions -I./ICPT -I./ICPT/StackArray/ -I${EIGEN} -I${BOOST} -I${BOOST}/include -I${HDF5}/include  -I/opt/local/include/openmpi-mp/ #-fpermissive #-DComplex
+DQMC_FLAGS = -std=c++14 -O3 -march=core-avx2 -g -I./FCIQMC -I./VMC -I./utils -I./Wavefunctions -I./ICPT -I./ICPT/StackArray/ -I${EIGEN} -I${BOOST} -I${BOOST}/include -I${HDF5}/include  -I/opt/local/include/openmpi-mp/ #-fpermissive #-DComplex
 
-#temporary defines
-includedir=/usr/include
-host_includedir=/usr/include
-libdir=/usr/lib
-
-CXX = mpicxx
-
-DEPENDECY_INCLUDE = -I${includedir}  -I${includedir}/openmpi
-BUILD_DEPENCENCY_INCLUDE = -I${host_includedir}/eigen3 -I./google_sparsehash
-LOCAL_INCLUDE = -I./FCIQMC -I./VMC -I./utils -I./Wavefunctions -I./ICPT -I./ICPT/StackArray/
-
-INCLUDE_FLAGS = ${LOCAL_INCLUDE} ${DEPENDECY_INCLUDE} ${BUILD_DEPENCENCY_INCLUDE}
-
-DQMC_FLAGS =  -std=c++14 -O3 -march=core-avx2 -g -openmp ${INCLUDE_FLAGS}  #-fpermissive #-DComplex
-FLAGS = -std=c++14 -O3 -g -march=core-avx2 -openmp ${INCLUDE_FLAGS}
+FLAGS = -std=c++14 -O3 -g -march=core-avx2 -I./FCIQMC -I./VMC -I./utils -I./Wavefunctions -I./ICPT -I./ICPT/StackArray/ -I${EIGEN} -I${BOOST} -I${BOOST}/include -I${HDF5}/include -I${LIBIGL} -I${SPARSEHASH} -I/opt/local/include/openmpi-mp/ #-fpermissive #-DComplex
 
 GIT_HASH=`git rev-parse HEAD`
 COMPILE_TIME=`date`
 GIT_BRANCH=`git branch | grep "^\*" | sed s/^..//`
 VERSION_FLAGS=-DGIT_HASH="\"$(GIT_HASH)\"" -DCOMPILE_TIME="\"$(COMPILE_TIME)\"" -DGIT_BRANCH="\"$(GIT_BRANCH)\""
 
+INCLUDE_MKL=-I/curc/sw/intel/16.0.3/mkl/include
+LIB_MKL = -L/curc/sw/intel/16.0.3/mkl/lib/intel64/ -lmkl_intel_ilp64 -lmkl_gnu_thread -lmkl_core
 
-LFLAGS = -L${libdir} -L${libdir}/openmpi  -lboost_serialization -lboost_mpi -lboost_program_options -lboost_system -lboost_filesystem -lhdf5 -pthread -lrt
+ifeq ($(USE_INTEL), yes) 
+	FLAGS += -qopenmp
+	DFLAGS += -qopenmp
+	ifeq ($(USE_MPI), yes) 
+		CXX = mpiicpc #-mkl
+		CC = mpiicpc
+		LFLAGS = -L${BOOST}/stage/lib -lboost_serialization -lboost_mpi -lboost_program_options -lboost_system -lboost_filesystem -L${HDF5}/lib -lhdf5
+		#CXX = mpicxx
+		#CC = mpicc
+		#LFLAGS = -L${BOOST}/lib -lboost_serialization -lboost_mpi  -lboost_program_options -lboost_system -lboost_filesystem -lrt -L${HDF5}/lib -lhdf5
+	else
+		CXX = icpc
+		CC = icpc
+		LFLAGS = -L${BOOST}/stage/lib -lboost_serialization-mt
+		FLAGS += -DSERIAL
+		DFLAGS += -DSERIAL
+	endif
+else
+	FLAGS += -openmp
+	DFLAGS += -openmp
+	ifeq ($(USE_MPI), yes) 
+		CXX = mpicxx
+		CC = mpicxx
+		LFLAGS = -L${CURC_BOOST_LIB} -lboost_serialization -lboost_mpi -lboost_program_options -lboost_system -lboost_filesystem -L${HDF5}/lib -lhdf5
+	else
+		CXX = g++
+		CC = g++
+		LFLAGS = -L/opt/local/lib -lboost_serialization-mt
+		FLAGS += -DSERIAL
+		DFLAGS += -DSERIAL
+	endif
+endif
+
+# Host specific configurations.
+HOSTNAME := $(shell hostname)
+ifneq ($(filter dft node%, $(HOSTNAME)),)
+include dft.mk
+endif
+
 
 OBJ_VMC = obj/staticVariables.o \
 	obj/input.o \
@@ -144,11 +171,18 @@ obj/%.o: utils/%.cpp
 obj/%.o: VMC/%.cpp  
 	$(CXX) $(FLAGS) -I./VMC $(OPT) -c $< -o $@
 obj/%.o: DQMC/%.cpp  
-	$(CXX) $(FLAGS) -I./DQMC $(OPT) -c $< -o $@
+	$(CXX) $(DQMC_FLAGS) -I./DQMC $(OPT) -c $< -o $@
 obj/%.o: FCIQMC/%.cpp  
 	$(CXX) $(FLAGS) -I./FCIQMC $(OPT) -c $< -o $@
+obj/%.o: ICPT/%.cpp  
+	$(CXX) $(FLAGS) $(INCLUDE_MKL) -I./ICPT/TensorExpressions/ $(OPT) -c $< -o $@
+obj/%.o: ICPT/StackArray/%.cpp  
+	$(CXX) $(FLAGS) $(INCLUDE_MKL) $(OPT) -c $< -o $@
 
 ALL= bin/VMC bin/GFMC bin/ICPT bin/FCIQMC bin/DQMC
+ifeq ($(COMPILE_NUMERIC), yes)
+	ALL+= bin/periodic
+endif 
 
 #all: $(ALL) #bin/VMC bin/libPeriodic.so
 #FCIQMC: bin/FCIQMC
@@ -159,16 +193,19 @@ all: bin/VMC bin/GFMC bin/FCIQMC bin/DQMC #bin/sPT  bin/GFMC
 FCIQMC: bin/FCIQMC
 #bin/GFMC bin/FCIQMC #bin/sPT  bin/GFMC
 
-#bin/periodic: 
-#	cd ./NumericPotential/PeriodicIntegrals/ && $(MAKE) -f Makefile && cp a.out ../../bin/periodic
+bin/periodic: 
+	cd ./NumericPotential/PeriodicIntegrals/ && $(MAKE) -f Makefile && cp a.out ../../bin/periodic
 
-#bin/libPeriodic.so: bin/libPeriodic.so
-#	cd ./NumericPotential/ && $(MAKE) -f Makefile
+bin/libPeriodic.so: bin/libPeriodic.so
+	cd ./NumericPotential/ && $(MAKE) -f Makefile
 
 bin/GFMC	: $(OBJ_GFMC) executables/GFMC.cpp
 	$(CXX)   $(FLAGS) -I./GFMC $(OPT) -c executables/GFMC.cpp -o obj/GFMC.o $(VERSION_FLAGS)
 	$(CXX)   $(FLAGS) $(OPT) -o  bin/GFMC $(OBJ_GFMC) obj/GFMC.o $(LFLAGS) $(VERSION_FLAGS)
 
+bin/ICPT	: $(OBJ_ICPT) executables/ICPT.cpp
+	$(CXX)   $(FLAGS) $(INCLUDE_MKL)  $(OPT) -c executables/ICPT.cpp -o obj/ICPT.o $(VERSION_FLAGS)
+	$(CXX)   $(FLAGS) $(OPT) -o  bin/ICPT $(OBJ_ICPT) obj/ICPT.o $(LFLAGS) $(LIB_MKL) $(VERSION_FLAGS)
 
 bin/VMC	: $(OBJ_VMC) executables/VMC.cpp
 	$(CXX)   $(FLAGS) -I./VMC $(OPT) -c executables/VMC.cpp -o obj/VMC.o $(VERSION_FLAGS)

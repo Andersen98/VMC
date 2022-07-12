@@ -80,7 +80,7 @@ sJastrow::sJastrow(int pnorbs, int pnalpha, int pnbeta, std::string fname)
     op *= sqrt(complex<double>(2.* eigenvalues(i), 0.));
     complex<double> mfShift = green[0].diagonal().cwiseProduct(op).sum() + green[1].diagonal().cwiseProduct(op).sum();
     oneBodyOperator += mfShift * op;
-    op -= VectorXcd::Constant(norbs, mfShift/double(pnalpha + pnbeta));
+    op -= VectorXcd::Constant(norbs, mfShift/(pnalpha + pnbeta));
     hsOperators.push_back(op);
   }
   
@@ -192,8 +192,8 @@ std::array<std::complex<double>, 2> sJastrow::hamAndOverlap(std::array<Eigen::Ma
   }
   
   std::array<complex<double>, 2> hamOverlap;
-  hamOverlap[0] = localEnergy / (double)nSamples;
-  hamOverlap[1] = overlap / (double)nSamples;
+  hamOverlap[0] = localEnergy / nSamples;
+  hamOverlap[1] = overlap / nSamples;
   return hamOverlap;
 };
 

@@ -66,7 +66,7 @@ void DQMCWalker::prepProp(std::array<Eigen::MatrixXcd, 2>& ref, Hamiltonian& ham
     constant -= pow(mfShift, 2) / 2.;
     oneBodyOperator -= mfShift * op;
     if (phaselessQ) mfShifts.push_back(mfShift);
-    else mfShifts.push_back(mfShift / double(ham.nalpha + ham.nbeta));
+    else mfShifts.push_back(mfShift / (ham.nalpha + ham.nbeta));
   }
 
   if (phaselessQ) {
@@ -74,8 +74,8 @@ void DQMCWalker::prepProp(std::array<Eigen::MatrixXcd, 2>& ref, Hamiltonian& ham
     propConstant[1] = constant - ene0;
   }
   else {
-    propConstant[0] = constant / (double)ham.nalpha;
-    propConstant[1] = constant / (double)ham.nbeta;
+    propConstant[0] = constant / ham.nalpha;
+    propConstant[1] = constant / ham.nbeta;
   }
   expOneBodyOperator =  (-dt * oneBodyOperator / 2.).exp();
 
@@ -165,17 +165,17 @@ void DQMCWalker::propagate(Hamiltonian& ham)
   //MatrixXcd propc = sqrt(dt) * complex<double>(0, 1.) * prop.cast<double>();
   MatrixXcd propc = MatrixXcd::Zero(norbs, norbs);
   for (int i = 0; i < norbs; i++) {
-    propc(i, i) = sqrt(dt) * complex<double>(0, 1.) * (double)prop[i * (i + 1) / 2 + i];
+    propc(i, i) = sqrt(dt) * complex<double>(0, 1.) * prop[i * (i + 1) / 2 + i];
     for (int j = 0; j < i; j++) {
-      propc(i, j) = sqrt(dt) * complex<double>(0, 1.) * (double)prop[i * (i + 1) / 2 + j];
-      propc(j, i) = sqrt(dt) * complex<double>(0, 1.) * (double)prop[i * (i + 1) / 2 + j];
+      propc(i, j) = sqrt(dt) * complex<double>(0, 1.) * prop[i * (i + 1) / 2 + j];
+      propc(j, i) = sqrt(dt) * complex<double>(0, 1.) * prop[i * (i + 1) / 2 + j];
     }
   }
   
   det[0] = expOneBodyOperator * det[0];
   MatrixXcd temp = det[0];
   for (int i = 1; i < 10; i++) {
-    temp = propc * temp / (double)i;
+    temp = propc * temp / i;
     det[0] += temp;
   }
   det[0] = exp(-sqrt(dt) * shift) * exp(propConstant[0] * dt / 2.) * expOneBodyOperator * det[0];
@@ -186,7 +186,7 @@ void DQMCWalker::propagate(Hamiltonian& ham)
     det[1] = expOneBodyOperator * det[1];
     temp = det[1];
     for (int i = 1; i < 10; i++) {
-      temp = propc * temp / (double)i;
+      temp = propc * temp / i;
       det[1] += temp;
     }
     det[1] = exp(-sqrt(dt) * shift) * exp(propConstant[1] * dt / 2.) * expOneBodyOperator * det[1];
@@ -222,23 +222,23 @@ double DQMCWalker::propagatePhaseless(Wavefunction& wave, Hamiltonian& ham, doub
     }
     //prop.noalias() += float(field_n) * floatChol[i];
     shift += (field_n - fieldShift) * mfShifts[n];
-    fbTerm += (field_n * fieldShift - fieldShift * fieldShift / 2.);
+    fbTerm += (field_n * fieldShift - fieldShift * fieldShift / 2);
   }
 
   //MatrixXcd propc = sqrt(dt) * complex<double>(0, 1.) * prop.cast<double>();
   MatrixXcd propc = MatrixXcd::Zero(norbs, norbs);
   for (int i = 0; i < norbs; i++) {
-    propc(i, i) = sqrt(dt) * (complex<double>(0., 1.) * (double)propr[i * (i + 1) / 2 + i] - (double)propi[i * (i + 1) / 2 + i]);
+    propc(i, i) = sqrt(dt) * (complex<double>(0., 1.) * propr[i * (i + 1) / 2 + i] - propi[i * (i + 1) / 2 + i]);
     for (int j = 0; j < i; j++) {
-      propc(i, j) = sqrt(dt) * (complex<double>(0., 1.) * (double)propr[i * (i + 1) / 2 + j] - (double)propi[i * (i + 1) / 2 + j]);
-      propc(j, i) = sqrt(dt) * (complex<double>(0., 1.) * (double)propr[i * (i + 1) / 2 + j] - (double)propi[i * (i + 1) / 2 + j]);
+      propc(i, j) = sqrt(dt) * (complex<double>(0., 1.) * propr[i * (i + 1) / 2 + j] - propi[i * (i + 1) / 2 + j]);
+      propc(j, i) = sqrt(dt) * (complex<double>(0., 1.) * propr[i * (i + 1) / 2 + j] - propi[i * (i + 1) / 2 + j]);
     }
   }
   
   det[0] = expOneBodyOperator * det[0];
   MatrixXcd temp = det[0];
   for (int i = 1; i < 6; i++) {
-    temp = propc * temp / (double)i;
+    temp = propc * temp / i;
     det[0] += temp;
   }
   det[0] = expOneBodyOperator * det[0];
@@ -249,7 +249,7 @@ double DQMCWalker::propagatePhaseless(Wavefunction& wave, Hamiltonian& ham, doub
     det[1] = expOneBodyOperator * det[1];
     temp = det[1];
     for (int i = 1; i < 6; i++) {
-      temp = propc * temp / (double)i;
+      temp = propc * temp / i;
       det[1] += temp;
     }
     det[1] = expOneBodyOperator * det[1];

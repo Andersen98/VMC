@@ -23,7 +23,6 @@
 #include <map>
 #include <boost/serialization/serialization.hpp>
 #include <boost/serialization/map.hpp>
-#include <vector>
 
 class Correlator;
 class Determinant;
