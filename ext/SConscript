@@ -1,0 +1,9 @@
+from threading import local
+
+
+Import('env','libraryTargets')
+
+#suppress warnings
+local_env = env.Clone(CCFLAGS='-W')
+
+

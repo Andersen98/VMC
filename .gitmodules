@@ -1,3 +1,27 @@
-[submodule "libigl"]
-	path = libigl
-	url = https://github.com/libigl/libigl
+[submodule "ext/eigen"]
+	path = ext/eigen
+	url = https://gitlab.com/libeigen/eigen.git
+[submodule "ext/libigl"]
+	path = ext/libigl
+	url = https://github.com/libigl/libigl.git
+[submodule "ext/boost_format"]
+	path = ext/boost_format
+	url = https://github.com/boostorg/format.git
+[submodule "ext/boost_serialization"]
+	path = ext/boost_serialization
+	url = https://github.com/boostorg/serialization.git
+[submodule "ext/boost_mpi"]
+	path = ext/boost_mpi
+	url = https://github.com/boostorg/mpi.git
+[submodule "ext/boost_math"]
+	path = ext/boost_math
+	url = https://github.com/boostorg/math.git
+[submodule "ext/boost_algorithm"]
+	path = ext/boost_algorithm
+	url = https://github.com/boostorg/algorithm.git
+[submodule "ext/boost_container"]
+	path = ext/boost_container
+	url = https://github.com/boostorg/container.git
+[submodule "ext/boost_smart_ptr"]
+	path = ext/boost_smart_ptr
+	url = https://github.com/boostorg/smart_ptr.git
