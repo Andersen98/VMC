@@ -1,5 +1,6 @@
 import numpy as np
 import math
+import time
 import h5py
 from pyscf import gto, scf, ao2mo, mcscf, tools, fci, mp
 #from pyscf.shciscf import shci, settings
@@ -9,7 +10,7 @@ import sys
 from scipy.linalg import fractional_matrix_power
 from scipy.stats import ortho_group
 import scipy.linalg as la
-
+import json
 
 def doRHF(mol):
   mf = scf.RHF(mol)
@@ -222,6 +223,181 @@ def prepValence(mol, ncore, nact, occ=None, loc="iao", dm=None, writeFcidump=Tru
   if writeMOs:
     writeMat(gmf.mo_coeff, "hf.txt", False)
 
+
+# calculate and write cholesky integrals
+# mc has to be provided if using frozen core
+def prepAFQMC(mol, mf, mc=None, chol_cut=1e-5, verbose=False):
+  mo_coeff = mf.mo_coeff
+  if mc is not None:
+    mo_coeff = mc.mo_coeff.copy()
+  h1e, chol, nelec, enuc = generate_integrals(mol, mf.get_hcore(), mo_coeff, chol_cut, verbose)
+  nbasis = h1e.shape[-1]
+  nelec = mol.nelec
+
+  if mc is not None:
+    if mc.ncore != 0:
+      nelec = mc.nelecas
+      h1e, enuc = mc.get_h1eff()
+      chol = chol.reshape((-1, nbasis, nbasis))
+      chol = chol[:, mc.ncore:, mc.ncore:]
+
+  nbasis = h1e.shape[-1]
+  print(f'nelec: {nelec}')
+  print(f'nbasis: {nbasis}')
+  print(f'chol.shape: {chol.shape}')
+  chol = chol.reshape((-1, nbasis, nbasis))
+  v0 = 0.5 * np.einsum('nik,njk->ij', chol, chol, optimize='optimal')
+  h1e_mod = h1e - v0
+  chol = chol.reshape((chol.shape[0], -1))
+  write_dqmc(h1e, h1e_mod, chol, sum(nelec), nbasis, enuc, ms=mol.spin, filename='FCIDUMP_chol')
+
+
+# cholesky generation functions are from pauxy
+def generate_integrals(mol, hcore, X, chol_cut=1e-5, verbose=False):
+    # Unpack SCF data.
+    # Step 1. Rotate core Hamiltonian to orthogonal basis.
+    if verbose:
+        print(" # Transforming hcore and eri to ortho AO basis.")
+    if (len(X.shape) == 2):
+        h1e = np.dot(X.T, np.dot(hcore, X))
+    elif (len(X.shape) == 3):
+        h1e = np.dot(X[0].T, np.dot(hcore, X[0]))
+
+    nbasis = h1e.shape[-1]
+    # Step 2. Genrate Cholesky decomposed ERIs in non-orthogonal AO basis.
+    if verbose:
+        print (" # Performing modified Cholesky decomposition on ERI tensor.")
+    chol_vecs = chunked_cholesky(mol, max_error=chol_cut, verbose=verbose)
+    if verbose:
+        print (" # Orthogonalising Cholesky vectors.")
+    start = time.time()
+    # Step 2.a Orthogonalise Cholesky vectors.
+    if (len(X.shape) == 2):
+        ao2mo_chol(chol_vecs, X)
+    elif (len(X.shape) == 3):
+        ao2mo_chol(chol_vecs, X[0])
+    if verbose:
+        print (" # Time to orthogonalise: %f"%(time.time() - start))
+    enuc = mol.energy_nuc()
+    # Step 3. (Optionally) freeze core / virtuals.
+    nelec = mol.nelec
+    return h1e, chol_vecs, nelec, enuc
+
+def ao2mo_chol(eri, C):
+    nb = C.shape[-1]
+    for i, cv in enumerate(eri):
+        half = np.dot(cv.reshape(nb,nb), C)
+        eri[i] = np.dot(C.conj().T, half).ravel()
+
+def chunked_cholesky(mol, max_error=1e-6, verbose=False, cmax=10):
+    """Modified cholesky decomposition from pyscf eris.
+
+    See, e.g. [Motta17]_
+
+    Only works for molecular systems.
+
+    Parameters
+    ----------
+    mol : :class:`pyscf.mol`
+        pyscf mol object.
+    orthoAO: :class:`numpy.ndarray`
+        Orthogonalising matrix for AOs. (e.g., mo_coeff).
+    delta : float
+        Accuracy desired.
+    verbose : bool
+        If true print out convergence progress.
+    cmax : int
+        nchol = cmax * M, where M is the number of basis functions.
+        Controls buffer size for cholesky vectors.
+
+    Returns
+    -------
+    chol_vecs : :class:`numpy.ndarray`
+        Matrix of cholesky vectors in AO basis.
+    """
+    nao = mol.nao_nr()
+    diag = np.zeros(nao*nao)
+    nchol_max = cmax * nao
+    # This shape is more convenient for pauxy.
+    chol_vecs = np.zeros((nchol_max, nao*nao))
+    ndiag = 0
+    dims = [0]
+    nao_per_i = 0
+    for i in range(0,mol.nbas):
+        l = mol.bas_angular(i)
+        nc = mol.bas_nctr(i)
+        nao_per_i += (2*l+1)*nc
+        dims.append(nao_per_i)
+    # print (dims)
+    for i in range(0,mol.nbas):
+        shls = (i,i+1,0,mol.nbas,i,i+1,0,mol.nbas)
+        buf = mol.intor('int2e_sph', shls_slice=shls)
+        di, dk, dj, dl = buf.shape
+        diag[ndiag:ndiag+di*nao] = buf.reshape(di*nao,di*nao).diagonal()
+        ndiag += di * nao
+    nu = np.argmax(diag)
+    delta_max = diag[nu]
+    if verbose:
+        print("# Generating Cholesky decomposition of ERIs."%nchol_max)
+        print("# max number of cholesky vectors = %d"%nchol_max)
+        print("# iteration %5d: delta_max = %f"%(0, delta_max))
+    j = nu // nao
+    l = nu % nao
+    sj = np.searchsorted(dims, j)
+    sl = np.searchsorted(dims, l)
+    if dims[sj] != j and j != 0:
+        sj -= 1
+    if dims[sl] != l and l != 0:
+        sl -= 1
+    Mapprox = np.zeros(nao*nao)
+    # ERI[:,jl]
+    eri_col = mol.intor('int2e_sph',
+                         shls_slice=(0,mol.nbas,0,mol.nbas,sj,sj+1,sl,sl+1))
+    cj, cl = max(j-dims[sj],0), max(l-dims[sl],0)
+    chol_vecs[0] = np.copy(eri_col[:,:,cj,cl].reshape(nao*nao)) / delta_max**0.5
+
+    nchol = 0
+    while abs(delta_max) > max_error:
+        # Update cholesky vector
+        start = time.time()
+        # M'_ii = L_i^x L_i^x
+        Mapprox += chol_vecs[nchol] * chol_vecs[nchol]
+        # D_ii = M_ii - M'_ii
+        delta = diag - Mapprox
+        nu = np.argmax(np.abs(delta))
+        delta_max = np.abs(delta[nu])
+        # Compute ERI chunk.
+        # shls_slice computes shells of integrals as determined by the angular
+        # momentum of the basis function and the number of contraction
+        # coefficients. Need to search for AO index within this shell indexing
+        # scheme.
+        # AO index.
+        j = nu // nao
+        l = nu % nao
+        # Associated shell index.
+        sj = np.searchsorted(dims, j)
+        sl = np.searchsorted(dims, l)
+        if dims[sj] != j and j != 0:
+            sj -= 1
+        if dims[sl] != l and l != 0:
+            sl -= 1
+        # Compute ERI chunk.
+        eri_col = mol.intor('int2e_sph',
+                            shls_slice=(0,mol.nbas,0,mol.nbas,sj,sj+1,sl,sl+1))
+        # Select correct ERI chunk from shell.
+        cj, cl = max(j-dims[sj],0), max(l-dims[sl],0)
+        Munu0 = eri_col[:,:,cj,cl].reshape(nao*nao)
+        # Updated residual = \sum_x L_i^x L_nu^x
+        R = np.dot(chol_vecs[:nchol+1,nu], chol_vecs[:nchol+1,:])
+        chol_vecs[nchol+1] = (Munu0 - R) / (delta_max)**0.5
+        nchol += 1
+        if verbose:
+            step_time = time.time() - start
+            info = (nchol, delta_max, step_time)
+            print ("# iteration %5d: delta_max = %13.8e: time = %13.8e"%info)
+
+    return chol_vecs[:nchol]
+
 # write cholesky integrals
 def write_dqmc(hcore, hcore_mod, chol, nelec, nmo, enuc, ms=0,
                         filename='FCIDUMP_chol'):
@@ -232,6 +408,20 @@ def write_dqmc(hcore, hcore_mod, chol, nelec, nmo, enuc, ms=0,
         fh5['hcore_mod'] = hcore_mod.flatten()
         fh5['chol'] = chol.flatten()
         fh5['energy_core'] = enuc
+
+
+# write soc integrals
+def write_dqmc_soc(hcore, hcore_mod, chol, nelec, nmo, enuc, filename='FCIDUMP_chol'):
+    assert len(chol.shape) == 2
+    with h5py.File(filename, 'w') as fh5:
+        fh5['header'] = np.array([nelec, nmo, chol.shape[0]])
+        fh5['hcore_real'] = hcore.real.flatten()
+        fh5['hcore_imag'] = hcore.imag.flatten()
+        fh5['hcore_mod_real'] = hcore_mod.real.flatten()
+        fh5['hcore_mod_imag'] = hcore_mod.imag.flatten()
+        fh5['chol'] = chol.flatten()
+        fh5['energy_core'] = enuc
+
 
 # write ccsd amplitudes
 def write_ccsd(singles, doubles, rotation=None, filename='ccsd.h5'):
@@ -259,6 +449,40 @@ def write_uccsd(singles, doubles, rotation=None, filename='uccsd.h5'):
     fh5['doubles1'] = doubles1.flatten()
     fh5['doubles2'] = doubles2.flatten()
     fh5['rotation'] = rotation.flatten()
+
+
+def write_afqmc_input(numAct = None, left = "rhf", right = "rhf", ndets = 100, seed = None, dt = 0.005, nsteps = 50, nwalk = 50, stochasticIter = 500, orthoSteps = 20, choleskyThreshold = 2.0e-3, fname = 'afqmc.json'):
+  system = { }
+  system["integrals"] = "FCIDUMP_chol"
+  if numAct is not None:
+    system["numAct"] = numAct
+
+  wavefunction = { }
+  wavefunction["left"] = f"{left}"
+  wavefunction["right"] = f"{right}"
+  if left == "multislater":
+    wavefunction["determinants"] = "dets.bin"
+    wavefunction["ndets"] = ndets
+
+  sampling = { }
+  if seed is None:
+    seed = np.random.randint(1, 1e6)
+  sampling["seed"] = seed
+  sampling["phaseless"] = True
+  sampling["dt"] = dt
+  sampling["nsteps"] = nsteps
+  sampling["nwalk"] = nwalk
+  sampling["stochasticIter"] = stochasticIter
+  sampling["choleskyThreshold"] = choleskyThreshold
+  sampling["orthoSteps"] = orthoSteps
+
+  json_input = {"system": system, "wavefunction": wavefunction, "sampling": sampling}
+  json_dump = json.dumps(json_input, indent = 2)
+
+  with open(fname, "w") as outfile:
+    outfile.write(json_dump)
+  return
+
 
 # for tilted hubbard model
 def findSiteInUnitCell(newsite, size, latticeVectors, sites):

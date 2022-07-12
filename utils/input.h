@@ -23,6 +23,8 @@
 #include <map>
 #include <boost/serialization/serialization.hpp>
 #include <boost/serialization/map.hpp>
+#include <vector>
+#include "hdf5.h"
 
 class Correlator;
 class Determinant;
@@ -107,6 +109,7 @@ private:
       & powerShift
       & expCorrelator
       & numHidden
+      & numHiddenLayers
       & maxIterFCIQMC
       & nreplicas
       & nAttemptsEach
@@ -156,6 +159,11 @@ private:
       & rightWave
       & ndets
       & phaseless
+      & soc
+      & writeOneRDM
+      & intType
+      & scratchDir
+      & weightCap
       // Options related to SC-NEVPT(s):
       & numSCSamples
       & printSCNorms
@@ -365,6 +373,7 @@ public:
 
   //options for rbm
   int numHidden;
+  int numHiddenLayers;
 
   // options for dqmc
   size_t nsteps;
@@ -384,6 +393,11 @@ public:
   std::string rightWave;
   size_t ndets;
   bool phaseless;
+  bool soc;
+  bool writeOneRDM;
+  std::string intType;
+  std::string scratchDir;
+  double weightCap;
 };
 
 /**
@@ -413,8 +427,9 @@ void readPairMat(Eigen::MatrixXd& pairMat);
  */
 
 void readMat(Eigen::MatrixXd& mat, std::string fileName);
-
 void readMat(Eigen::MatrixXcd& mat, std::string fileName);
+void readMat(Eigen::MatrixXd& mat, hid_t& file, std::string datasetName); 
+void readMat(Eigen::MatrixXcd& mat, hid_t& file, std::string datasetName); 
 
 void writeMat(Eigen::MatrixXcd& mat, std::string fileName);
 

@@ -29,8 +29,6 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
-#include "hdf5.h"
-
 
 #ifndef SERIAL
 #include "mpi.h"
@@ -61,8 +59,10 @@ void readInput(string inputFile, schedule& schd, bool print) {
 
     // system options
     schd.integralsFile = input.get("system.integrals", "FCIDUMP");
+    schd.intType = input.get("system.intType", "r");
     schd.nciCore = input.get("system.numCore", 0);                  // TODO: rename these because active spaces are also used without ci
     schd.nciAct = input.get("system.numAct", -1);
+    schd.soc = input.get("system.soc", false);
     
     //minimal checking for correctness
     //wavefunction
@@ -105,7 +105,7 @@ void readInput(string inputFile, schedule& schd, bool print) {
 
     // nnb and rbm
     schd.numHidden = input.get("wavefunction.numHidden", 1);
-
+    schd.numHiddenLayers = input.get("wavefunction.numHiddenLayers", 1);
 
     // multi-Slater
     schd.excitationLevel = input.get("wavefunction.excitationLevel", 10);
@@ -185,7 +185,8 @@ void readInput(string inputFile, schedule& schd, bool print) {
     schd.rightWave = algorithm::to_lower_copy(input.get("wavefunction.right", "rhf"));
     schd.ndets = input.get("wavefunction.ndets", 1e6);
     schd.phaseless = input.get("sampling.phaseless", false);
-    
+    schd.weightCap = input.get("sampling.weightCap", -1.);
+
     // GFMC
     schd.maxIter = input.get("sampling.maxIter", 50); //note: parameter repeated in optimizer for vmc
     schd.nwalk = input.get("sampling.nwalk", 100);
@@ -270,7 +271,11 @@ void readInput(string inputFile, schedule& schd, bool print) {
     schd.sampleNEVPT2Energy = input.get("print.sampleNEVPT2Energy", true);
     schd.printSCEnergies = input.get("print.SCEnergies", false);
     schd.nWalkSCEnergies = input.get("print.nWalkSCEnergies", 1);
-    
+    // dqmc
+    schd.writeOneRDM = input.get("print.writeOneRDM", false);
+    schd.scratchDir = input.get("print.scratchDir", "./");
+
+
     //deprecated, or I don't know what they do
     schd.actWidth = input.get("wavefunction.actWidth", 100);
     schd.numActive = input.get("wavefunction.numActive", -1);
@@ -376,6 +381,45 @@ void readMat(MatrixXd& mat, std::string fileName)
       dump >> mat(i, j);
     }
   }
+}
+
+void readMat(MatrixXd& mat, hid_t& file, std::string datasetName) {
+  int nrows = mat.rows(), ncols = mat.cols();
+  double *matRead = new double[nrows * ncols];
+  for (int i = 0; i < nrows; i++) {
+    for (int j = 0; j < ncols; j++) {
+      matRead[i * ncols + j] = 0.;
+    }
+  }
+
+  hid_t dataset = (-1);
+  herr_t status;
+  H5E_BEGIN_TRY {
+    dataset = H5Dopen(file, datasetName.c_str(), H5P_DEFAULT);
+    status = H5Dread(dataset, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, matRead);
+  } H5E_END_TRY
+  if (dataset < 0) {
+    if (commrank == 0) cout << datasetName << " dataset could not be read." << endl;
+    exit(1);
+  }
+  
+  for (int i = 0; i < nrows; i++) {
+    for (int j = 0; j < ncols; j++) {
+      mat(i, j) = matRead[i * ncols + j];
+    }
+  }
+  delete [] matRead;
+}
+
+void readMat(MatrixXcd& mat, hid_t& file, std::string datasetName) {
+  int nrows = mat.rows(), ncols = mat.cols();
+  MatrixXd matR = Eigen::MatrixXd::Zero(nrows, ncols);
+  MatrixXd matI = Eigen::MatrixXd::Zero(nrows, ncols);
+  std::string datasetRName = datasetName + "_real";
+  std::string datasetIName = datasetName + "_imag";
+  readMat(matR, file, datasetRName);
+  readMat(matI, file, datasetIName);
+  mat = matR + std::complex<double>(0., 1.) * matI;
 }
 
 void writeMat(MatrixXcd& mat, std::string fileName) {
@@ -651,6 +695,8 @@ void readDeterminants(std::string input, std::array<std::vector<int>, 2>& ref, s
   for (int i = 0; i < ncore; i++) {
     refDet.setoccA(i, true);
     refDet.setoccB(i, true);
+    ref[0].push_back(i);
+    ref[1].push_back(i);
   }
   VectorXi sizes = VectorXi::Zero(10);
   int numDets = 0;
@@ -767,10 +813,13 @@ void readDeterminantsBinary(std::string input, std::array<std::vector<int>, 2>& 
   for (int i = 0; i < ncore; i++) {
     refDet.setoccA(i, true);
     refDet.setoccB(i, true);
+    ref[0].push_back(i);
+    ref[1].push_back(i);
   }
   VectorXi sizes = VectorXi::Zero(10);
   int numDets = 0;
-  
+  std::array<std::vector<int>, 2> open;
+
   for (int n = 0; n < ndetsDice; n++) {
     if (isFirst) {// first det is ref
       isFirst = false;
@@ -794,10 +843,16 @@ void readDeterminantsBinary(std::string input, std::array<std::vector<int>, 2>& 
         else if (detocc == 'a') {
           refDet.setoccA(i, true);
           ref[0].push_back(i);
+          open[1].push_back(i);
         }
         else if (detocc == 'b') {
           refDet.setoccB(i, true);
           ref[1].push_back(i);
+          open[0].push_back(i);
+        }
+        else if (detocc == '0') {
+          open[0].push_back(i);
+          open[1].push_back(i);
         }
       }
       numDets++;
@@ -834,7 +889,9 @@ void readDeterminantsBinary(std::string input, std::array<std::vector<int>, 2>& 
       for (int i = 0; i < creA.size(); i++) {
         //des[i] = std::search_n(ref.begin(), ref.end(), 1, desA[i]) - ref.begin();
         //cre[i] = std::search_n(open.begin(), open.end(), 1, creA[i]) - open.begin();
-        excitationsA[0](i) = desA[i];
+        excitationsA[0](i) = std::search_n(ref[0].begin(), ref[0].end(), 1, desA[i]) - ref[0].begin();
+        //excitationsA[1](i) = std::search_n(open[0].begin(), open[0].end(), 1, creA[i]) - open[0].begin();
+        //excitationsA[0](i) = desA[i];
         excitationsA[1](i) = creA[i];
       }
 
@@ -844,7 +901,9 @@ void readDeterminantsBinary(std::string input, std::array<std::vector<int>, 2>& 
       for (int i = 0; i < creB.size(); i++) {
         //des[i + desA.size()] = std::search_n(ref.begin(), ref.end(), 1, desB[i] + norbs) - ref.begin();
         //cre[i + creA.size()] = std::search_n(open.begin(), open.end(), 1, creB[i] + norbs) - open.begin();
-        excitationsB[0](i) = desB[i];
+        excitationsB[0](i) = std::search_n(ref[1].begin(), ref[1].end(), 1, desB[i]) - ref[1].begin();
+        //excitationsB[1](i) = std::search_n(open[1].begin(), open[1].end(), 1, creB[i]) - open[1].begin();
+        //excitationsB[0](i) = desB[i];
         excitationsB[1](i) = creB[i];
       }
       
@@ -859,8 +918,10 @@ void readDeterminantsBinary(std::string input, std::array<std::vector<int>, 2>& 
     }
   }
   if (commrank == 0) {
-    cout << "Rankwise number of excitations " << sizes.transpose() << endl;
-    cout << "Number of determinants " << numDets << endl << endl;
+    ofstream afqmcFile("afqmc.dat", ios::app);
+    afqmcFile << "# Rankwise number of excitations " << sizes.transpose() << endl;
+    afqmcFile << "# Number of determinants " << numDets << "\n#\n";
+    afqmcFile.close();
   }
 }
 
